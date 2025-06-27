@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complaint Form</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background-color: #f5f5f5;
+      text-align: center;
+      margin: 0;
+    }
+    #formContainer {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      margin: 20px auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, textarea {
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 100px;
+      resize: vertical;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px;
+      border: none;
+      width: 100%;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    #successMessage {
+      display: none;
+      margin-top: 20px;
+      color: green;
+    }
+    #errorMessage {
+      display: none;
+      margin-top: 20px;
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div id="formContainer">
+    <h2>Register Your Complaint</h2>
+    <form id="complaintForm">
+      <input type="text" id="name" placeholder="Your Name" required />
+      <input type="tel" id="number" placeholder="Mobile Number" required />
+      <textarea id="complaint" placeholder="Register your complaint..." required></textarea>
+      <button type="submit" id="submitButton">Submit</button>
+    </form>
+    <div id="successMessage">
+      <p>✅ Complaint submitted successfully!</p>
+      <button onclick="window.location.reload()">Register Another Complaint</button>
+    </div>
+    <div id="errorMessage"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBeO59zgyeHNF4pwDnbTAwn71xiaGs_b0E",
+      authDomain: "complaintformapp.firebaseapp.com",
+      projectId: "complaintformapp",
+      storageBucket: "complaintformapp.firebasestorage.app",
+      messagingSenderId: "110845733470",
+      appId: "1:110845733470:web:1c42d24cf55b32f6e9a2cf"
+    };
+
+    let app, db;
+    try {
+      app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      console.log("Firebase initialized successfully");
+    } catch (error) {
+      console.error("Firebase initialization failed:", error);
+      document.getElementById("errorMessage").textContent = "Failed to connect to the server. Please try again later.";
+      document.getElementById("errorMessage").style.display = "block";
+    }
+
+    const form = document.getElementById("complaintForm");
+    const successMessage = document.getElementById("successMessage");
+    const errorMessage = document.getElementById("errorMessage");
+    const submitButton = document.getElementById("submitButton");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      console.log("Form submission triggered");
+
+      const name = document.getElementById("name").value.trim();
+      const number = document.getElementById("number").value.trim();
+      const complaint = document.getElementById("complaint").value.trim();
+
+      if (!name || !number || !complaint) {
+        errorMessage.textContent = "Please fill all fields.";
+        errorMessage.style.display = "block";
+        return;
+      }
+
+      submitButton.disabled = true;
+      submitButton.textContent = "Submitting...";
+      errorMessage.style.display = "none";
+
+      try {
+        await addDoc(collection(db, "complaints"), {
+          name,
+          number,
+          complaint,
+          timestamp: serverTimestamp()
+        });
+        console.log("Complaint submitted successfully");
+        form.style.display = "none";
+        successMessage.style.display = "block";
+      } catch (error) {
+        console.error("Error submitting complaint:", error);
+        errorMessage.textContent = "Error submitting complaint: " + error.message;
+        errorMessage.style.display = "block";
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Submit";
+      }
+    });
+  </script>
+</body>
+</html>

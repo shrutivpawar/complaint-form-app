@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f0f0f0;
+      margin: 0;
+    }
+    h2 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+      margin-top: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    .error-message {
+      color: red;
+      text-align: center;
+      margin-top: 20px;
+      display: none;
+    }
+    #authContainer {
+      text-align: center;
+      margin-bottom: 20px;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #authContainer input {
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    #authContainer button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    #authContainer button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div id="authContainer">
+    <h2>Admin Login</h2>
+    <div id="loginForm">
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <button id="loginButton">Login</button>
+      <button id="logoutButton" style="display:none;">Logout</button>
+    </div>
+    <div id="authMessage" class="error-message"></div>
+  </div>
+
+  <h2>Admin - Complaint Submissions</h2>
+  <div id="errorMessage" class="error-message"></div>
+  <table id="complaintsTableContainer" style="display:none;">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Number</th>
+        <th>Complaint</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody id="complaintsTable"></tbody>
+  </table>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBeO59zgyeHNF4pwDnbTAwn71xiaGs_b0E",
+      authDomain: "complaintformapp.firebaseapp.com",
+      projectId: "complaintformapp",
+      storageBucket: "complaintformapp.firebasestorage.app",
+      messagingSenderId: "110845733470",
+      appId: "1:110845733470:web:1c42d24cf55b32f6e9a2cf"
+    };
+
+    let app, db, auth;
+    try {
+      app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      auth = getAuth(app);
+      console.log("Firebase initialized successfully");
+    } catch (error) {
+      console.error("Firebase initialization failed:", error);
+      document.getElementById("errorMessage").textContent = "Failed to connect to the server: " + error.message;
+      document.getElementById("errorMessage").style.display = "block";
+    }
+
+    const table = document.getElementById("complaintsTable");
+    const tableContainer = document.getElementById("complaintsTableContainer");
+    const errorMessage = document.getElementById("errorMessage");
+    const authMessage = document.getElementById("authMessage");
+    const loginButton = document.getElementById("loginButton");
+    const logoutButton = document.getElementById("logoutButton");
+    const loginForm = document.getElementById("loginForm");
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        user.getIdTokenResult().then((idTokenResult) => {
+          if (idTokenResult.claims.isAdmin) {
+            console.log("Admin user signed in:", user.email);
+            loginForm.style.display = "none";
+            logoutButton.style.display = "inline";
+            tableContainer.style.display = "table";
+            authMessage.textContent = `Logged in as ${user.email}`;
+            authMessage.style.color = "green";
+            authMessage.style.display = "block";
+            loadComplaints();
+          } else {
+            authMessage.textContent = "Access denied: Not an admin.";
+            authMessage.style.display = "block";
+            signOut(auth);
+          }
+        }).catch((error) => {
+          console.error("Error checking admin claim:", error);
+          authMessage.textContent = "Error verifying admin status: " + error.message;
+          authMessage.style.display = "block";
+          signOut(auth);
+        });
+      } else {
+        console.log("No user signed in");
+        loginForm.style.display = "block";
+        logoutButton.style.display = "none";
+        tableContainer.style.display = "none";
+        authMessage.textContent = "Please log in to view complaints.";
+        authMessage.style.display = "block";
+        authMessage.style.color = "red";
+      }
+    });
+
+    loginButton.addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      if (!email || !password) {
+        authMessage.textContent = "Please enter email and password.";
+        authMessage.style.display = "block";
+        return;
+      }
+      loginButton.disabled = true;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        console.log("Login successful");
+      } catch (error) {
+        console.error("Login failed:", error);
+        authMessage.textContent = "Login failed: " + error.message;
+        authMessage.style.display = "block";
+      } finally {
+        loginButton.disabled = false;
+      }
+    });
+
+    logoutButton.addEventListener("click", async () => {
+      try {
+        await signOut(auth);
+        console.log("Logout successful");
+        authMessage.textContent = "Logged out successfully.";
+        authMessage.style.display = "block";
+        authMessage.style.color = "green";
+      } catch (error) {
+        console.error("Logout failed:", error);
+        authMessage.textContent = "Logout failed: " + error.message;
+        authMessage.style.display = "block";
+      }
+    });
+
+    function loadComplaints() {
+      if (!db) {
+        table.innerHTML = `<tr><td colspan="4">Unable to load complaints due to initialization error.</td></tr>`;
+        return;
+      }
+      const q = query(collection(db, "complaints"), orderBy("timestamp", "desc"));
+      onSnapshot(q, (snapshot) => {
+        console.log("Snapshot received, documents:", snapshot.size);
+        table.innerHTML = "";
+        if (snapshot.empty) {
+          table.innerHTML = `<tr><td colspan="4">No complaints found.</td></tr>`;
+          return;
+        }
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const time = data.timestamp?.toDate().toLocaleString() || "N/A";
+          console.log("Complaint data:", data);
+          const row = `
+            <tr>
+              <td>${data.name || "N/A"}</td>
+              <td>${data.number || "N/A"}</td>
+              <td>${data.complaint || "N/A"}</td>
+              <td>${time}</td>
+            </tr>
+          `;
+          table.innerHTML += row;
+        });
+      }, (error) => {
+        console.error("Error fetching complaints:", error);
+        errorMessage.textContent = "Error fetching complaints: " + error.message;
+        errorMessage.style.display = "block";
+      });
+    }
+  </script>
+</body>
+</html>
