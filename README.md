@@ -1,0 +1,1 @@
+Built the complaint form and admin dashboard using HTML, CSS, and JavaScript for the front-end, with Firebase for the backend and hosting. Node.js was used for setting up admin permissions. Deployed at https://complaintformapp.web.app.
